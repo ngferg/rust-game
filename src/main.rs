@@ -16,11 +16,11 @@ const MAX_X: f32 = 1280.0;
 const MAX_Y: f32 = 720.0;
 const BULLET_SPEED: f32 = 10.0;
 const MAX_BULLETS: usize = 3;
-const ASTROID_MAX_SIZE: u8 = 5;
+const ASTROID_MAX_SIZE: u8 = 6;
 const ASTROID_ANGLE_RANGE: f32 = 0.2;
 const ASTROID_BUFFER_ZONE: f32 = 50.0;
-const STARTING_SPAWN_RATE: u64 = PHYSICS_TICK_RATE as u64 * 5;
-const ASTROID_ACCELERATION_FACTOR: f64 = 10.0;
+const STARTING_SPAWN_RATE: u64 = PHYSICS_TICK_RATE as u64 * 3;
+const ASTROID_ACCELERATION_FACTOR: f64 = 30.0;
 const ASTROID_SPEED: f32 = 1.0;
 const ASTROID_RADIUS_FACTOR: f32 = 5.0;
 const ACCURACY_LEEWAY: f32 = 3.0;
@@ -320,7 +320,7 @@ async fn main() {
         player.bullets.iter()
             .for_each(|bullet| draw_circle(bullet.x, bullet.y, 1.0, bullet.color));
         astroids.astroids.iter()
-            .for_each(|astroid| draw_circle(astroid.x, astroid.y, astroid.size as f32 * ASTROID_RADIUS_FACTOR, LIGHTGRAY));
+            .for_each(|astroid| draw_circle(astroid.x, astroid.y, astroid.size as f32 * ASTROID_RADIUS_FACTOR, DARKGRAY));
         ship_sprite.update();
         draw_text(format!("Score {}, fps: {}", score, last_frames).as_str(), 0.0, MAX_Y - FONT_SIZE, FONT_SIZE, LIGHTGRAY);
         next_frame().await;
