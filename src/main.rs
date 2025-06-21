@@ -22,7 +22,7 @@ const ASTROID_BUFFER_ZONE: f32 = 50.0;
 const STARTING_SPAWN_RATE: u64 = PHYSICS_TICK_RATE as u64 * 3;
 const ASTROID_ACCELERATION_FACTOR: f64 = 30.0;
 const ASTROID_SPEED: f32 = 1.0;
-const ASTROID_RADIUS_FACTOR: f32 = 5.0;
+const ASTROID_RADIUS_FACTOR: f32 = 6.0;
 const ACCURACY_LEEWAY: f32 = 3.0;
 const SHIP_HIT_LEEWAY: f32 = 4.0;
 
@@ -102,14 +102,14 @@ impl Player {
             self.bullets.push(Bullet::new(self.x + 16.0, self.y + 16.0, self.angle, color));
         }
     }
-    
+
     fn is_hit(&self, astroids: &Vec<Astroid>) -> bool {
         astroids.iter()
             .any(|astroid| self.x + 16.0 > astroid.x - astroid.size as f32 * ASTROID_RADIUS_FACTOR - SHIP_HIT_LEEWAY &&
                 self.x + 16.0 < astroid.x + astroid.size as f32 * ASTROID_RADIUS_FACTOR + SHIP_HIT_LEEWAY &&
                 self.y + 16.0 > astroid.y - astroid.size as f32 * ASTROID_RADIUS_FACTOR - SHIP_HIT_LEEWAY &&
                 self.y + 16.0 < astroid.y + astroid.size as f32 * ASTROID_RADIUS_FACTOR + SHIP_HIT_LEEWAY)
-    } 
+    }
 }
 
 fn is_on_screen(x: f32, y: f32) -> bool{
@@ -286,7 +286,7 @@ async fn main() {
 
             astroids.astroids.iter_mut()
                 .for_each(|astroid| astroid.process_movement());
-            
+
             booming = booming || player.is_hit(&astroids.astroids);
 
             astroids.spawn_counter += 1;
