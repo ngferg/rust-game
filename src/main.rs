@@ -4,6 +4,7 @@ use macroquad::prelude::*;
 use std::f32::consts::PI;
 use ::rand::Rng;
 
+const FONT_SIZE: f32 = 32.0;
 const TURNING_FACTOR: f32 = 8.0;
 const ACCELERATION_FACTOR: f32 = 0.25;
 const MAX_SPEED: f32 = 2.0;
@@ -22,7 +23,8 @@ const STARTING_SPAWN_RATE: u64 = PHYSICS_TICK_RATE as u64 * 5;
 const ASTROID_ACCELERATION_FACTOR: f64 = 10.0;
 const ASTROID_SPEED: f32 = 1.0;
 const ASTROID_RADIUS_FACTOR: f32 = 5.0;
-const ACCURACY_LEEWAY: f32 = 2.0;
+const ACCURACY_LEEWAY: f32 = 3.0;
+const SHIP_HIT_LEEWAY: f32 = 4.0;
 
 struct Player {
     x: f32,
@@ -100,6 +102,14 @@ impl Player {
             self.bullets.push(Bullet::new(self.x + 16.0, self.y + 16.0, self.angle, color));
         }
     }
+    
+    fn is_hit(&self, astroids: &Vec<Astroid>) -> bool {
+        astroids.iter()
+            .any(|astroid| self.x + 16.0 > astroid.x - astroid.size as f32 * ASTROID_RADIUS_FACTOR - SHIP_HIT_LEEWAY &&
+                self.x + 16.0 < astroid.x + astroid.size as f32 * ASTROID_RADIUS_FACTOR + SHIP_HIT_LEEWAY &&
+                self.y + 16.0 > astroid.y - astroid.size as f32 * ASTROID_RADIUS_FACTOR - SHIP_HIT_LEEWAY &&
+                self.y + 16.0 < astroid.y + astroid.size as f32 * ASTROID_RADIUS_FACTOR + SHIP_HIT_LEEWAY)
+    } 
 }
 
 fn is_on_screen(x: f32, y: f32) -> bool{
@@ -186,6 +196,8 @@ impl Astroids {
 
 #[macroquad::main("MyGame")]
 async fn main() {
+    let mut booming = false;
+    let mut score: u64 = 0;
     let mut last_physics_tick = now();
     request_new_screen_size(MAX_X, MAX_Y);
 
@@ -227,27 +239,7 @@ async fn main() {
 
         match get_last_key_pressed() {
             Some(KeyCode::Escape) => {
-                let mut booming = true;
-                ship_sprite.set_animation(BOOM_INDEX);
-                while booming {
-                    clear_background(BLACK);
-                    draw_texture_ex(
-                        ship_png,
-                        player.x,
-                        player.y,
-                        WHITE,
-                        DrawTextureParams {
-                            source: Some(ship_sprite.frame().source_rect),
-                            dest_size: Some(ship_sprite.frame().dest_size),
-                            rotation: player.angle,
-                            ..Default::default()
-                        },
-                    );
-                    ship_sprite.update();
-                    booming = !ship_sprite.is_last_frame();
-                    next_frame().await;
-                }
-                break
+                booming = true;
             },
             Some(KeyCode::W) => player.accelerate(),
             Some(KeyCode::S) => player.decelerate(),
@@ -274,6 +266,7 @@ async fn main() {
                             astroids.astroids[i].size -= 1;
                             if astroids.astroids[i].size == 0 {
                                 astroids.astroids.remove(i);
+                                score += 1;
                             }
                             false
                         },
@@ -284,6 +277,8 @@ async fn main() {
 
             astroids.astroids.iter_mut()
                 .for_each(|astroid| astroid.process_movement());
+            
+            booming = booming || player.is_hit(&astroids.astroids);
 
             astroids.spawn_counter += 1;
             if astroids.spawn_counter > astroids.spawn_rate {
@@ -318,6 +313,30 @@ async fn main() {
         astroids.astroids.iter()
             .for_each(|astroid| draw_circle(astroid.x, astroid.y, astroid.size as f32 * ASTROID_RADIUS_FACTOR, LIGHTGRAY));
         ship_sprite.update();
+        draw_text(format!("Score {}", score).as_str(), 0.0, MAX_Y - FONT_SIZE, FONT_SIZE, LIGHTGRAY);
         next_frame().await;
+
+        if booming {
+            while booming {
+                ship_sprite.set_animation(BOOM_INDEX);
+                clear_background(BLACK);
+                draw_texture_ex(
+                    ship_png,
+                    player.x,
+                    player.y,
+                    WHITE,
+                    DrawTextureParams {
+                        source: Some(ship_sprite.frame().source_rect),
+                        dest_size: Some(ship_sprite.frame().dest_size),
+                        rotation: player.angle,
+                        ..Default::default()
+                    },
+                );
+                ship_sprite.update();
+                booming = !ship_sprite.is_last_frame();
+                next_frame().await;
+            }
+            break;
+        }
     }
 }
