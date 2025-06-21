@@ -12,15 +12,25 @@ const IDLE_INDEX: usize = 0;
 
 const MAX_X: f32 = 1280.0;
 const MAX_Y: f32 = 720.0;
+const BULLET_SPEED: f32 = 10.0;
 
 struct Player {
     x: f32,
     y: f32,
     angle: f32,
     speed: f32,
+    bullets: Vec<Bullet>,
+    bullets_shot: u64,
 }
 
 impl Player {
+
+    fn new(x: f32, y: f32) -> Self {
+        Player {
+            x, y, angle: 0.0, speed: 0.0, bullets: vec![], bullets_shot: 0
+        }
+    }
+
     fn get_animation_style(&self) -> usize {
         match self.speed {
             0.0 => IDLE_INDEX,
@@ -70,7 +80,45 @@ impl Player {
             self.y += MAX_Y + 32.0;
         }
     }
+
+    fn shoot(&mut self) {
+        if self.bullets.len() < 5 {
+            self.bullets_shot += 1;
+            let color = if self.bullets_shot % 5 == 0 {
+                RED
+            } else {
+                WHITE
+            };
+            self.bullets.push(Bullet::new(self.x + 16.0, self.y + 16.0, self.angle, color));
+        }
+    }
 }
+
+struct Bullet {
+    x: f32,
+    y: f32,
+    angle: f32,
+    color: Color,
+}
+
+impl Bullet {
+
+    fn new(x: f32, y: f32, angle: f32, color: Color) -> Self {
+        Bullet {
+            x, y, angle, color
+        }
+    }
+
+    fn process_movement(&mut self) {
+        self.y -= BULLET_SPEED * self.angle.cos();
+        self.x += BULLET_SPEED * self.angle.sin();
+    }
+
+    fn is_on_screen(&self) -> bool {
+        !(self.x < -10.0 || self.x > MAX_X + 10.0 || self.y < -10.0 || self.y > MAX_Y + 10.0)
+    }
+}
+
 
 #[macroquad::main("MyGame")]
 async fn main() {
@@ -80,12 +128,7 @@ async fn main() {
     let ship_png: &Texture2D = &load_texture("assets/ship_moving.png")
         .await
         .expect("Ship moving image failed to load!");
-    let mut player = Player {
-        x: MAX_X / 2.0,
-        y: MAX_Y / 2.0,
-        angle: 0.0,
-        speed: 0.0,
-    };
+    let mut player = Player::new(MAX_X / 2.0, MAX_Y / 2.0);
     let mut ship_sprite = AnimatedSprite::new(
         32,
         32,
@@ -115,12 +158,18 @@ async fn main() {
             Some(KeyCode::S) => player.decelerate(),
             Some(KeyCode::A) => player.turn_left(),
             Some(KeyCode::D) => player.turn_right(),
+            Some(KeyCode::Space) => player.shoot(),
             _ => {}
         }
 
         if now() > last_physics_tick + (1.0 / PHYSICS_TICK_RATE) {
             last_physics_tick = now();
             player.process_movement();
+            player.bullets.iter_mut()
+                .for_each(|bullet| bullet.process_movement());
+            player.bullets = player.bullets.into_iter()
+                .filter(|bullet| bullet.is_on_screen())
+                .collect();
         }
 
         ship_sprite.set_animation(player.get_animation_style());
@@ -136,6 +185,8 @@ async fn main() {
                 ..Default::default()
             },
         );
+        player.bullets.iter()
+            .for_each(|bullet| draw_line(bullet.x, bullet.y, bullet.x + bullet.angle.sin() * 3.0, bullet.y + bullet.angle.cos() * -3.0, 1.0, bullet.color));
         // Update frame
         ship_sprite.update();
         next_frame().await;
