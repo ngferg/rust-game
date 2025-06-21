@@ -250,10 +250,10 @@ async fn main() {
             Some(KeyCode::Escape) => {
                 booming = true;
             },
-            Some(KeyCode::W) => player.accelerate(),
-            Some(KeyCode::S) => player.decelerate(),
-            Some(KeyCode::A) => player.turn_left(),
-            Some(KeyCode::D) => player.turn_right(),
+            Some(KeyCode::W) | Some(KeyCode::Up) => player.accelerate(),
+            Some(KeyCode::S) | Some(KeyCode::Down) => player.decelerate(),
+            Some(KeyCode::A) | Some(KeyCode::Left) => player.turn_left(),
+            Some(KeyCode::D) | Some(KeyCode::Right) => player.turn_right(),
             Some(KeyCode::B) => astroids.astroids.push(Astroid::new()),
             Some(KeyCode::Space) => player.shoot(),
             _ => {}
@@ -294,8 +294,8 @@ async fn main() {
                 astroids.astroids.push(Astroid::new());
                 astroids.spawn_counter = 0;
                 astroids.spawn_rate -= (PHYSICS_TICK_RATE / ASTROID_ACCELERATION_FACTOR) as u64;
-                if astroids.spawn_rate < PHYSICS_TICK_RATE as u64 {
-                    astroids.spawn_rate = PHYSICS_TICK_RATE as u64;
+                if astroids.spawn_rate < PHYSICS_TICK_RATE as u64 / 2 {
+                    astroids.spawn_rate = PHYSICS_TICK_RATE as u64 / 2;
                 }
             }
 
