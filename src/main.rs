@@ -7,21 +7,21 @@ use ::rand::Rng;
 const FONT_SIZE: f32 = 32.0;
 const TURNING_FACTOR: f32 = 8.0;
 const ACCELERATION_FACTOR: f32 = 0.25;
-const MAX_SPEED: f32 = 2.0;
+const MAX_SPEED: f32 = 3.0;
 const PHYSICS_TICK_RATE: f64 = 144.0;
 const ANIMATED_INDEX: usize = 0;
 const IDLE_INDEX: usize = 1;
 const BOOM_INDEX: usize = 2;
 const MAX_X: f32 = 1280.0;
 const MAX_Y: f32 = 720.0;
-const BULLET_SPEED: f32 = 10.0;
+const BULLET_SPEED: f32 = 10.0 * (144.0 / PHYSICS_TICK_RATE as f32);
 const MAX_BULLETS: usize = 3;
 const ASTROID_MAX_SIZE: u8 = 6;
 const ASTROID_ANGLE_RANGE: f32 = 0.2;
 const ASTROID_BUFFER_ZONE: f32 = 50.0;
 const STARTING_SPAWN_RATE: u64 = PHYSICS_TICK_RATE as u64 * 3;
 const ASTROID_ACCELERATION_FACTOR: f64 = 30.0;
-const ASTROID_SPEED: f32 = 1.0;
+const ASTROID_SPEED: f32 = 144.0 / PHYSICS_TICK_RATE as f32;
 const ASTROID_RADIUS_FACTOR: f32 = 6.0;
 const ACCURACY_LEEWAY: f32 = 3.0;
 const SHIP_HIT_LEEWAY: f32 = 4.0;
@@ -78,8 +78,8 @@ impl Player {
     }
 
     fn process_movement(&mut self) {
-        self.y -= self.speed * self.angle.cos();
-        self.x += self.speed * self.angle.sin();
+        self.y -= self.speed * self.angle.cos() * (144.0 / PHYSICS_TICK_RATE as f32);
+        self.x += self.speed * self.angle.sin() * (144.0 / PHYSICS_TICK_RATE as f32);
         if self.x > MAX_X {
             self.x -= MAX_X;
         } else if self.x < -32.0 {
