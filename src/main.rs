@@ -1,7 +1,7 @@
-use std::f32::consts::PI;
 use macroquad::experimental::animation::{AnimatedSprite, Animation};
 use macroquad::miniquad::date::now;
 use macroquad::prelude::*;
+use std::f32::consts::PI;
 
 const TURNING_FACTOR: f32 = 8.0;
 const ACCELERATION_FACTOR: f32 = 0.25;
@@ -118,9 +118,8 @@ async fn main() {
             _ => {}
         }
 
-        let now = now();
-        if now > last_physics_tick + (1.0/PHYSICS_TICK_RATE) {
-            last_physics_tick = miniquad::date::now();
+        if now() > last_physics_tick + (1.0 / PHYSICS_TICK_RATE) {
+            last_physics_tick = now();
             player.process_movement();
         }
 
