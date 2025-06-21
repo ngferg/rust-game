@@ -2,6 +2,7 @@ use macroquad::experimental::animation::{AnimatedSprite, Animation};
 use macroquad::miniquad::date::now;
 use macroquad::prelude::*;
 use std::f32::consts::PI;
+use ::rand::Rng;
 
 const TURNING_FACTOR: f32 = 8.0;
 const ACCELERATION_FACTOR: f32 = 0.25;
@@ -14,6 +15,14 @@ const MAX_X: f32 = 1280.0;
 const MAX_Y: f32 = 720.0;
 const BULLET_SPEED: f32 = 10.0;
 const MAX_BULLETS: usize = 3;
+const ASTROID_MAX_SIZE: u8 = 5;
+const ASTROID_ANGLE_RANGE: f32 = 0.2;
+const ASTROID_BUFFER_ZONE: f32 = 50.0;
+const STARTING_SPAWN_RATE: u64 = PHYSICS_TICK_RATE as u64 * 5;
+const ASTROID_ACCELERATION_FACTOR: f64 = 10.0;
+const ASTROID_SPEED: f32 = 1.0;
+const ASTROID_RADIUS_FACTOR: f32 = 5.0;
+const ACCURACY_LEEWAY: f32 = 2.0;
 
 struct Player {
     x: f32,
@@ -93,6 +102,10 @@ impl Player {
     }
 }
 
+fn is_on_screen(x: f32, y: f32) -> bool{
+    !(x < -10.0 || x > MAX_X + 10.0 || y < -10.0 || y > MAX_Y + 10.0)
+}
+
 struct Bullet {
     x: f32,
     y: f32,
@@ -114,7 +127,59 @@ impl Bullet {
     }
 
     fn is_on_screen(&self) -> bool {
-        !(self.x < -10.0 || self.x > MAX_X + 10.0 || self.y < -10.0 || self.y > MAX_Y + 10.0)
+        is_on_screen(self.x, self.y)
+    }
+
+    fn intersects_astroid_at_index(&self, astroids: &Vec<Astroid>) -> Option<usize> {
+        astroids.iter()
+            .position(|astroid| self.x > astroid.x - astroid.size as f32 * ASTROID_RADIUS_FACTOR - ACCURACY_LEEWAY &&
+                self.x < astroid.x + astroid.size as f32 * ASTROID_RADIUS_FACTOR + ACCURACY_LEEWAY &&
+                self.y > astroid.y - astroid.size as f32 * ASTROID_RADIUS_FACTOR - ACCURACY_LEEWAY &&
+                self.y < astroid.y + astroid.size as f32 * ASTROID_RADIUS_FACTOR + ACCURACY_LEEWAY)
+    }
+}
+
+struct Astroid {
+    x: f32,
+    y: f32,
+    angle: f32,
+    size: u8,
+}
+
+impl Astroid {
+    fn new() -> Self {
+        let mut rng = ::rand::rng();
+        match rng.random_range(0..4) {
+            0 => Astroid { x: 0.0, y: rng.random_range(ASTROID_BUFFER_ZONE..MAX_Y - ASTROID_BUFFER_ZONE), angle: rng.random_range(ASTROID_ANGLE_RANGE..PI-ASTROID_ANGLE_RANGE), size: rng.random_range(1..=ASTROID_MAX_SIZE)},
+            1 => Astroid { x: MAX_X, y: rng.random_range(ASTROID_BUFFER_ZONE..MAX_Y - ASTROID_BUFFER_ZONE), angle: rng.random_range(PI + ASTROID_ANGLE_RANGE..2.0*PI-ASTROID_ANGLE_RANGE), size: rng.random_range(1..=ASTROID_MAX_SIZE)},
+            2 => Astroid { x: rng.random_range(ASTROID_BUFFER_ZONE..MAX_X - ASTROID_BUFFER_ZONE), y: 0.0, angle: rng.random_range(PI/2.0 + ASTROID_ANGLE_RANGE..3.0*PI/2.0-ASTROID_ANGLE_RANGE), size: rng.random_range(1..=ASTROID_MAX_SIZE)},
+            _ => Astroid { x: rng.random_range(ASTROID_BUFFER_ZONE..MAX_X - ASTROID_BUFFER_ZONE), y: MAX_Y, angle: rng.random_range(-PI/2.0 + ASTROID_ANGLE_RANGE..PI/2.0-ASTROID_ANGLE_RANGE), size: rng.random_range(1..=ASTROID_MAX_SIZE)},
+        }
+    }
+
+    fn process_movement(&mut self) {
+        self.y -= ASTROID_SPEED * self.angle.cos();
+        self.x += ASTROID_SPEED * self.angle.sin();
+    }
+
+    fn is_on_screen(&self) -> bool {
+        is_on_screen(self.x, self.y)
+    }
+}
+
+struct Astroids {
+    astroids: Vec<Astroid>,
+    spawn_rate: u64,
+    spawn_counter: u64,
+}
+
+impl Astroids {
+    fn new() -> Self {
+        Astroids {
+            astroids: vec![],
+            spawn_rate: STARTING_SPAWN_RATE,
+            spawn_counter: 0,
+        }
     }
 }
 
@@ -154,8 +219,11 @@ async fn main() {
         true,
     );
 
+    let mut astroids = Astroids::new();
+
     loop {
         clear_background(BLACK);
+
 
         match get_last_key_pressed() {
             Some(KeyCode::Escape) => {
@@ -185,6 +253,7 @@ async fn main() {
             Some(KeyCode::S) => player.decelerate(),
             Some(KeyCode::A) => player.turn_left(),
             Some(KeyCode::D) => player.turn_right(),
+            Some(KeyCode::B) => astroids.astroids.push(Astroid::new()),
             Some(KeyCode::Space) => player.shoot(),
             _ => {}
         }
@@ -194,8 +263,40 @@ async fn main() {
             player.process_movement();
             player.bullets.iter_mut()
                 .for_each(|bullet| bullet.process_movement());
+
+
             player.bullets = player.bullets.into_iter()
                 .filter(|bullet| bullet.is_on_screen())
+                .filter(|bullet| {
+                    let astroid_hit = bullet.intersects_astroid_at_index(&astroids.astroids);
+                    match astroid_hit {
+                        Some(i) => {
+                            astroids.astroids[i].size -= 1;
+                            if astroids.astroids[i].size == 0 {
+                                astroids.astroids.remove(i);
+                            }
+                            false
+                        },
+                        _ => true
+                    }
+                })
+                .collect();
+
+            astroids.astroids.iter_mut()
+                .for_each(|astroid| astroid.process_movement());
+
+            astroids.spawn_counter += 1;
+            if astroids.spawn_counter > astroids.spawn_rate {
+                astroids.astroids.push(Astroid::new());
+                astroids.spawn_counter = 0;
+                astroids.spawn_rate -= (PHYSICS_TICK_RATE / ASTROID_ACCELERATION_FACTOR) as u64;
+                if astroids.spawn_rate < PHYSICS_TICK_RATE as u64 {
+                    astroids.spawn_rate = PHYSICS_TICK_RATE as u64;
+                }
+            }
+
+            astroids.astroids = astroids.astroids.into_iter()
+                .filter(|astroid| astroid.is_on_screen())
                 .collect();
         }
 
@@ -213,8 +314,9 @@ async fn main() {
             },
         );
         player.bullets.iter()
-            .for_each(|bullet| draw_line(bullet.x, bullet.y, bullet.x + bullet.angle.sin() * 3.0, bullet.y + bullet.angle.cos() * -3.0, 1.0, bullet.color));
-        // Update frame
+            .for_each(|bullet| draw_circle(bullet.x, bullet.y, 1.0, bullet.color));
+        astroids.astroids.iter()
+            .for_each(|astroid| draw_circle(astroid.x, astroid.y, astroid.size as f32 * ASTROID_RADIUS_FACTOR, LIGHTGRAY));
         ship_sprite.update();
         next_frame().await;
     }
