@@ -198,6 +198,9 @@ impl Astroids {
 async fn main() {
     let mut booming = false;
     let mut score: u64 = 0;
+    let mut last_second = now() as u64;
+    let mut frames: u64 = 0;
+    let mut last_frames: u64 = 0;
     let mut last_physics_tick = now();
     request_new_screen_size(MAX_X, MAX_Y);
 
@@ -234,6 +237,12 @@ async fn main() {
     let mut astroids = Astroids::new();
 
     loop {
+        frames += 1;
+        if now() as u64 > last_second {
+            last_frames = frames;
+            frames = 1;
+            last_second = now() as u64;
+        }
         clear_background(BLACK);
 
 
@@ -313,7 +322,7 @@ async fn main() {
         astroids.astroids.iter()
             .for_each(|astroid| draw_circle(astroid.x, astroid.y, astroid.size as f32 * ASTROID_RADIUS_FACTOR, LIGHTGRAY));
         ship_sprite.update();
-        draw_text(format!("Score {}", score).as_str(), 0.0, MAX_Y - FONT_SIZE, FONT_SIZE, LIGHTGRAY);
+        draw_text(format!("Score {}, fps: {}", score, last_frames).as_str(), 0.0, MAX_Y - FONT_SIZE, FONT_SIZE, LIGHTGRAY);
         next_frame().await;
 
         if booming {
