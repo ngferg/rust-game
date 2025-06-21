@@ -20,14 +20,13 @@ struct Player {
     angle: f32,
     speed: f32,
     bullets: Vec<Bullet>,
-    bullets_shot: u64,
 }
 
 impl Player {
 
     fn new(x: f32, y: f32) -> Self {
         Player {
-            x, y, angle: 0.0, speed: 0.0, bullets: vec![], bullets_shot: 0
+            x, y, angle: 0.0, speed: 0.0, bullets: vec![]
         }
     }
 
@@ -83,8 +82,7 @@ impl Player {
 
     fn shoot(&mut self) {
         if self.bullets.len() < 5 {
-            self.bullets_shot += 1;
-            let color = if self.bullets_shot % 5 == 0 {
+            let color = if self.bullets.len() == 4 {
                 RED
             } else {
                 WHITE
