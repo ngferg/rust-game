@@ -9,6 +9,10 @@ const MAX_SPEED: f32 = 2.0;
 const PHYSICS_TICK_RATE: f64 = 144.0;
 const ANIMATED_INDEX: usize = 1;
 const IDLE_INDEX: usize = 0;
+
+const MAX_X: f32 = 1280.0;
+const MAX_Y: f32 = 720.0;
+
 struct Player {
     x: f32,
     y: f32,
@@ -55,21 +59,30 @@ impl Player {
     fn process_movement(&mut self) {
         self.y -= self.speed * self.angle.cos();
         self.x += self.speed * self.angle.sin();
+        if self.x > MAX_X {
+            self.x -= MAX_X;
+        } else if self.x < -32.0 {
+            self.x += MAX_X + 32.0;
+        }
+        if self.y > MAX_Y {
+            self.y -= MAX_Y;
+        } else if self.y < -32.0 {
+            self.y += MAX_Y + 32.0;
+        }
     }
 }
 
 #[macroquad::main("MyGame")]
 async fn main() {
     let mut last_physics_tick = now();
-    let screen_width = screen_width();
-    let screen_height = screen_height();
+    request_new_screen_size(MAX_X, MAX_Y);
 
     let ship_png: &Texture2D = &load_texture("assets/ship_moving.png")
         .await
         .expect("Ship moving image failed to load!");
     let mut player = Player {
-        x: screen_width / 2.0,
-        y: screen_height / 2.0,
+        x: MAX_X / 2.0,
+        y: MAX_Y / 2.0,
         angle: 0.0,
         speed: 0.0,
     };
