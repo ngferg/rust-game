@@ -7,12 +7,13 @@ const TURNING_FACTOR: f32 = 8.0;
 const ACCELERATION_FACTOR: f32 = 0.25;
 const MAX_SPEED: f32 = 2.0;
 const PHYSICS_TICK_RATE: f64 = 144.0;
-const ANIMATED_INDEX: usize = 1;
-const IDLE_INDEX: usize = 0;
-
+const ANIMATED_INDEX: usize = 0;
+const IDLE_INDEX: usize = 1;
+const BOOM_INDEX: usize = 2;
 const MAX_X: f32 = 1280.0;
 const MAX_Y: f32 = 720.0;
 const BULLET_SPEED: f32 = 10.0;
+const MAX_BULLETS: usize = 3;
 
 struct Player {
     x: f32,
@@ -81,8 +82,8 @@ impl Player {
     }
 
     fn shoot(&mut self) {
-        if self.bullets.len() < 5 {
-            let color = if self.bullets.len() == 4 {
+        if self.bullets.len() < MAX_BULLETS {
+            let color = if self.bullets.len() == MAX_BULLETS - 1 {
                 RED
             } else {
                 WHITE
@@ -123,26 +124,32 @@ async fn main() {
     let mut last_physics_tick = now();
     request_new_screen_size(MAX_X, MAX_Y);
 
-    let ship_png: &Texture2D = &load_texture("assets/ship_moving.png")
+    let ship_png: &Texture2D = &load_texture("assets/ship.png")
         .await
-        .expect("Ship moving image failed to load!");
+        .expect("Ship image failed to load!");
     let mut player = Player::new(MAX_X / 2.0, MAX_Y / 2.0);
     let mut ship_sprite = AnimatedSprite::new(
         32,
         32,
         &[
             Animation {
+                name: "moving".to_string(),
+                row: ANIMATED_INDEX as u32,
+                frames: 9,
+                fps: 48,
+            },
+            Animation {
                 name: "idle".to_string(),
-                row: 1,
+                row: IDLE_INDEX as u32,
                 frames: 1,
                 fps: 1,
             },
             Animation {
-                name: "run".to_string(),
-                row: 0,
-                frames: 9,
-                fps: 60,
-            },
+                name: "boom".to_string(),
+                row: BOOM_INDEX as u32,
+                frames: 20,
+                fps: 48,
+            }
         ],
         true,
     );
@@ -151,7 +158,29 @@ async fn main() {
         clear_background(BLACK);
 
         match get_last_key_pressed() {
-            Some(KeyCode::Escape) => break,
+            Some(KeyCode::Escape) => {
+                let mut booming = true;
+                ship_sprite.set_animation(BOOM_INDEX);
+                while booming {
+                    clear_background(BLACK);
+                    draw_texture_ex(
+                        ship_png,
+                        player.x,
+                        player.y,
+                        WHITE,
+                        DrawTextureParams {
+                            source: Some(ship_sprite.frame().source_rect),
+                            dest_size: Some(ship_sprite.frame().dest_size),
+                            rotation: player.angle,
+                            ..Default::default()
+                        },
+                    );
+                    ship_sprite.update();
+                    booming = !ship_sprite.is_last_frame();
+                    next_frame().await;
+                }
+                break
+            },
             Some(KeyCode::W) => player.accelerate(),
             Some(KeyCode::S) => player.decelerate(),
             Some(KeyCode::A) => player.turn_left(),
